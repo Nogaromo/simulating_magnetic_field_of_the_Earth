@@ -479,8 +479,6 @@ def plot_traj(initial_conditions, t_0=7200, color='red'):
     front = 0
     end_points = []
     t = np.linspace(0, t_0, t_0*10)
-    #for initial_cond in tqdm(initial_conditions, desc='Trajectories calculated: '):
-        #in_tor = False
     try:
         all_particles += 1
         sol = integrate.odeint(eqn, initial_conditions, t)
@@ -491,15 +489,10 @@ def plot_traj(initial_conditions, t_0=7200, color='red'):
             stuck_on_earth += 1
 
         res = check_in_torus(sol[:, 0], sol[:, 2], sol[:, 4])
-        #for i in range(sol.shape[0]):
-            #if if_in_tor(np.array([sol[i, 0], sol[i, 2], sol[i, 4]+b])):
-                #in_tor = True
-                #break
+
         if res[0]:
 
             moon_statistic += 1
-            #np.save(f'moon_solution_{moon_statistic}.npy', sol)
-
             files_list = os.listdir(r"C:\\Users\User\\PycharmProjects\\pythonProject4\\moon_solutions\\")
 
             if len(files_list) != 0:
@@ -509,25 +502,12 @@ def plot_traj(initial_conditions, t_0=7200, color='red'):
 
             save_path = fr"moon_solutions\moon_solution_{int(last_name_number) + 1}.npy"
             np.save(save_path, sol)
-            #moon_solutions.append(sol)
-            #moon_index.append(all_particles)
-            #if len(moon_solutions) >= 5:
-               # return moon_solutions#, moon_index
             if np.mean(res[1]) > 0.0:
                 back += 1
             else:
                 front += 1
-            #print(f'Достигшие Луны: {percent}%, {moon_statistic}.\nОставшиеся на Земле: {stuck_on_earth_p}%, {stuck_on_earth}\nУпали сзади: {back}\nУпали спереди: {front}')
-            #moon_solutions.append([x, y, z])
-        #x_end = sol[:, 0][-1]
-        #y_end = sol[:, 2][-1]
-        #z_end = sol[:, 4][-1]
-        #end_points.append(np.array([x_end, y_end, z_end]))
     except KeyboardInterrupt:
-        #print('Сохранение и выход')
-        #np.save(f'trajectory.npy', solutions)
         return moon_statistic, stuck_on_earth, back, front
-        #break
 
     return moon_statistic, stuck_on_earth, back, front
 
