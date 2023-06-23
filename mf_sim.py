@@ -2,7 +2,6 @@ import numpy as np
 from tqdm import tqdm
 from scipy.special import lpmv, eval_legendre, jv, jnp_zeros, gamma
 from scipy.constants import c, mu_0 as mu0, e, m_e, m_p
-import time
 from scipy.optimize import curve_fit
 from scipy.stats import rv_continuous
 import scipy.integrate as integrate
@@ -479,35 +478,33 @@ def plot_traj(initial_conditions, t_0=7200, color='red'):
     front = 0
     end_points = []
     t = np.linspace(0, t_0, t_0*10)
-    try:
-        all_particles += 1
-        sol = integrate.odeint(eqn, initial_conditions, t)
-        x_end = sol[:, 0][-1]
-        y_end = sol[:, 0][-1]
-        z_end = sol[:, 0][-1]
-        if (x_end**2+y_end**2+z_end**2) < 100*Re**2:
-            stuck_on_earth += 1
 
-        res = check_in_torus(sol[:, 0], sol[:, 2], sol[:, 4])
+    all_particles += 1
+    sol = integrate.odeint(eqn, initial_conditions, t)
+    x_end = sol[:, 0][-1]
+    y_end = sol[:, 0][-1]
+    z_end = sol[:, 0][-1]
+    if (x_end**2+y_end**2+z_end**2) < 100*Re**2:
+        stuck_on_earth += 1
 
-        if res[0]:
+    res = check_in_torus(sol[:, 0], sol[:, 2], sol[:, 4])
 
-            moon_statistic += 1
-            files_list = os.listdir(r"C:\\Users\User\\PycharmProjects\\pythonProject4\\moon_solutions\\")
+    if res[0]:
 
-            if len(files_list) != 0:
-                last_name_number = re.findall(r'\d+', os.listdir(r"C:\\Users\User\\PycharmProjects\\pythonProject4\\moon_solutions\\")[-1])[0]
-            else:
-                last_name_number = 0
+        moon_statistic += 1
+        files_list = os.listdir(r"moon_solutions\\")
 
-            save_path = fr"moon_solutions\moon_solution_{int(last_name_number) + 1}.npy"
-            np.save(save_path, sol)
-            if np.mean(res[1]) > 0.0:
-                back += 1
-            else:
-                front += 1
-    except KeyboardInterrupt:
-        return moon_statistic, stuck_on_earth, back, front
+        if len(files_list) != 0:
+            last_name_number = len([int(re.findall(r'\d+', file)[0]) for file in files_list])
+        else:
+            last_name_number = 0
+
+        save_path = fr"moon_solutions\moon_solution_{int(last_name_number) + 1}.npy"
+        np.save(save_path, sol)
+        if np.mean(res[1]) > 0.0:
+            back += 1
+        else:
+            front += 1
 
     return moon_statistic, stuck_on_earth, back, front
 
@@ -518,17 +515,19 @@ assoc_leg_1_at_zero, assoc_leg_1_at_pi = set_assoc_leg_1(load=True)
 
 
 if __name__ == '__main__':
-    ics = np.load("start_cond_1M.npy")
+    ics = np.load("start_cond_1M.npy")[50_000:100_000]
 
     batch_size = 1_000
-    full_stats = np.zeros((len(ics)/batch_size, 4))
-    num_processes = 4
+    num_processes = 6
+    N = len(ics)//batch_size
+    full_stats = np.zeros((N, 4))
+    k = 0
     for i in tqdm(range(0, len(ics), batch_size)):
         start_cond = ics[i:i+batch_size]
         p = mp.Pool(num_processes)
-        start_time = time.time()
         mp_solutions = p.map(plot_traj, start_cond)
-        full_stats[i] = np.sum(np.array(mp_solutions), axis=0)
+        full_stats[k] = np.sum(np.array(mp_solutions), axis=0)
+        k += 1
 
     statistic = np.sum(full_stats, axis=0)
     statistic_dict = {
@@ -538,5 +537,5 @@ if __name__ == '__main__':
                     "front": statistic[3]
                      }
 
-    with open(f'moon_stat_Ca_{Ca}_Ci_{Ci}_l_{l}_Bimf_{B_imf[0]}_{B_imf[1]}_{B_imf[2]}.json', 'w', encoding='utf-8') as file:
+    with open(f'1_moon_stat_Ca_{Ca}_Ci_{Ci}_l_{l}_Bimf_{B_imf[0]}_{B_imf[1]}_{B_imf[2]}.json', 'w', encoding='utf-8') as file:
         json.dump(statistic_dict, file, ensure_ascii=False, indent=4)
