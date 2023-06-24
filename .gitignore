@@ -1,0 +1,6 @@
+experiments/
+Include/
+Lib/
+Scripts/
+share/
+pyvenv.cfg
