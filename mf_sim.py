@@ -12,9 +12,19 @@ from sympy.abc import x, m, n, z
 import os
 import re
 import multiprocessing as mp
+import argparse
 import warnings
 warnings.filterwarnings("ignore")
 
+
+parser = argparse.ArgumentParser(description='Configuring parameters of the magnetospehere and file managment')
+parser.add_argument('--c_i', default=0.9, type=float, help='C_i coeffitient')
+parser.add_argument('--c_a', default=0.01, type=float, help='C_a coeffitient')
+parser.add_argument('--l', default=0.15, type=float, help='lambda coeffitient')
+parser.add_argument('--start_index', default=0, type=int, help='lambda coeffitient')
+parser.add_argument('--end_index', default=1_000_000, type=int, help='lambda coeffitient')
+parser.add_argument('--batch_size', default=1_000, type=int, help='batch size to track progress')
+parser.add_argument('--num_processes', default=6, type=int, help='number of processes to for multiprocessing')
 
 # Setting up the constants
 g_1_0 = -29404.8 * 1e-9*0
@@ -49,9 +59,12 @@ coef_mu0_4pi_b_3 = np.array([mu0/(4*np.pi*b**3)])
 coef_mu0_4pi = -np.array([mu0/(4*np.pi)])
 coef_mu0_8pi = np.array([mu0/(8*np.pi)])
 B_imf = np.array([-5*1e-9, 0., 0.])
-Ci = 0.9
-Ca = 0.01
-l = 0.15
+args = parser.parse_args()
+Ci = args.c_i
+Ca = args.c_a
+l = args.l
+n_start = args.start_index
+n_end = args.end_index
 ###
 
 
@@ -492,14 +505,16 @@ def plot_traj(initial_conditions, t_0=7200, color='red'):
     if res[0]:
 
         moon_statistic += 1
-        files_list = os.listdir(r"moon_solutions\\")
+        curr_exp_path = fr"experiments\\{Ci}_{Ca}_{l}_{B_imf[0]}_{B_imf[1]}_{B_imf[2]}"
+        curr_dir_path = curr_exp_path + "\\" + f"{n_start}_{n_end}" + "\\" + "moon_solutions"
+        files_list = os.listdir(curr_dir_path)
 
         if len(files_list) != 0:
             last_name_number = len([int(re.findall(r'\d+', file)[0]) for file in files_list])
         else:
             last_name_number = 0
 
-        save_path = fr"moon_solutions\moon_solution_{int(last_name_number) + 1}.npy"
+        save_path = curr_dir_path + fr"\moon_solution_{int(last_name_number) + 1}.npy"
         np.save(save_path, sol)
         if np.mean(res[1]) > 0.0:
             back += 1
@@ -515,11 +530,22 @@ assoc_leg_1_at_zero, assoc_leg_1_at_pi = set_assoc_leg_1(load=True)
 
 
 if __name__ == '__main__':
-    ics = np.load("start_cond_1M.npy")[50_000:100_000]
 
-    batch_size = 1_000
-    num_processes = 6
-    N = len(ics)//batch_size
+    main_dir_path = fr"experiments\\{Ci}_{Ca}_{l}_{B_imf[0]}_{B_imf[1]}_{B_imf[2]}"
+
+    try:
+        os.mkdir(main_dir_path)
+    except OSError:
+        pass
+
+    os.mkdir(main_dir_path + "\\" + f"{n_start}_{n_end}")
+    os.mkdir(main_dir_path + "\\" + f"{n_start}_{n_end}" + "\\" + "moon_solutions")
+
+    ics = np.load("start_cond_1M.npy")[n_start:n_end]
+
+    batch_size = args.batch_size
+    num_processes = args.num_processes
+    N = len(ics) // batch_size
     full_stats = np.zeros((N, 4))
     k = 0
     for i in tqdm(range(0, len(ics), batch_size)):
@@ -537,5 +563,5 @@ if __name__ == '__main__':
                     "front": statistic[3]
                      }
 
-    with open(f'1_moon_stat_Ca_{Ca}_Ci_{Ci}_l_{l}_Bimf_{B_imf[0]}_{B_imf[1]}_{B_imf[2]}.json', 'w', encoding='utf-8') as file:
+    with open(main_dir_path + "\\" + f"{n_start}_{n_end}" + "\\" + "stats.json", 'w', encoding='utf-8') as file:
         json.dump(statistic_dict, file, ensure_ascii=False, indent=4)
