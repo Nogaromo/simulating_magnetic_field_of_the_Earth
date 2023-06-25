@@ -514,8 +514,8 @@ def plot_traj(initial_conditions, t_0=7200, color='red'):
         else:
             last_name_number = 0
 
-        save_path = curr_dir_path + fr"\moon_solution_{int(last_name_number) + 1}.npy"
-        np.save(save_path, sol)
+        save_path = curr_dir_path + fr"\moon_solution_{int(last_name_number) + 1}.txt"
+        np.savetxt(save_path, sol)
         if np.mean(res[1]) > 0.0:
             back += 1
         else:
