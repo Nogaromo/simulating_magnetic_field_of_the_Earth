@@ -505,8 +505,8 @@ def plot_traj(initial_conditions, t_0=7200, color='red'):
     if res[0]:
 
         moon_statistic += 1
-        curr_exp_path = fr"experiments\\{Ci}_{Ca}_{l}_{B_imf[0]}_{B_imf[1]}_{B_imf[2]}"
-        curr_dir_path = curr_exp_path + "\\" + f"{n_start}_{n_end}" + "\\" + "moon_solutions"
+        curr_exp_path = fr"experiments\ {Ci}_{Ca}_{l}_{B_imf[0]}_{B_imf[1]}_{B_imf[2]}"
+        curr_dir_path = curr_exp_path + f"\ {n_start}_{n_end}\moon_solutions"
         files_list = os.listdir(curr_dir_path)
 
         if len(files_list) != 0:
@@ -531,15 +531,15 @@ assoc_leg_1_at_zero, assoc_leg_1_at_pi = set_assoc_leg_1(load=True)
 
 if __name__ == '__main__':
 
-    main_dir_path = fr"experiments\\{Ci}_{Ca}_{l}_{B_imf[0]}_{B_imf[1]}_{B_imf[2]}"
+    main_dir_path = fr"experiments\ {Ci}_{Ca}_{l}_{B_imf[0]}_{B_imf[1]}_{B_imf[2]}"
 
     try:
         os.mkdir(main_dir_path)
     except OSError:
         pass
 
-    os.mkdir(main_dir_path + "\\" + f"{n_start}_{n_end}")
-    os.mkdir(main_dir_path + "\\" + f"{n_start}_{n_end}" + "\\" + "moon_solutions")
+    os.mkdir(main_dir_path + fr"\ {n_start}_{n_end}")
+    os.mkdir(main_dir_path + fr"\ {n_start}_{n_end}\moon_solutions")
 
     ics = np.load("start_cond_1M.npy")[n_start:n_end]
 
@@ -563,5 +563,5 @@ if __name__ == '__main__':
                     "front": statistic[3]
                      }
 
-    with open(main_dir_path + "\\" + f"{n_start}_{n_end}" + "\\" + "stats.json", 'w', encoding='utf-8') as file:
+    with open(main_dir_path + fr"\ {n_start}_{n_end}\stats.json", 'w', encoding='utf-8') as file:
         json.dump(statistic_dict, file, ensure_ascii=False, indent=4)
