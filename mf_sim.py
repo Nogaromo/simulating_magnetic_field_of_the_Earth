@@ -471,11 +471,15 @@ def check_in_torus(x, y, z):
     y__ = y_
     z__ = x_*sin_ecl + z_*cos_ecl
     check_arr = (R_to_moon + R_moon - np.sqrt(x__**2 + y__**2))**2+z__**2
+    check_arr_ = check_arr <= R_moon ** 2
+
     if np.unique(check_arr <= R_moon**2).shape[0] > 1:
         dropped = True
+        itemindex = np.argwhere(check_arr_ == True)
+        return dropped, z[check_arr_], y[check_arr_], x[check_arr_], itemindex[0][0]
     else:
         dropped = False
-    return dropped, z[check_arr <= R_moon**2], y[check_arr <= R_moon**2], x[check_arr <= R_moon**2]
+        return dropped, z[check_arr_], y[check_arr_], x[check_arr_], 0
 
 
 def plot_traj(initial_conditions, t_0=7200, color='red'):
@@ -505,17 +509,26 @@ def plot_traj(initial_conditions, t_0=7200, color='red'):
     if res[0]:
 
         moon_statistic += 1
-        curr_exp_path = fr"experiments\ {Ci}_{Ca}_{l}_{B_imf[0]}_{B_imf[1]}_{B_imf[2]}"
-        curr_dir_path = curr_exp_path + f"\ {n_start}_{n_end}\moon_solutions"
+        curr_exp_path = fr"experiments\\{Ci}_{Ca}_{l}_{B_imf[0]}_{B_imf[1]}_{B_imf[2]}"
+        curr_dir_path = curr_exp_path + "\\" + f"{n_start}_{n_end}" + "\\" + "moon_solutions"
         files_list = os.listdir(curr_dir_path)
 
         if len(files_list) != 0:
+            # number_in_files = [int(re.findall(r'\d+', file)[0]) for file in files_list]
             last_name_number = len([int(re.findall(r'\d+', file)[0]) for file in files_list])
         else:
             last_name_number = 0
 
         save_path = curr_dir_path + fr"\moon_solution_{int(last_name_number) + 1}.txt"
-        np.savetxt(save_path, sol)
+
+        if last_name_number % 5 == 0:
+            np.savetxt(save_path, sol[:res[4]])
+        else:
+            start_ = sol[0]
+            end_ = sol[res[4]]
+            first_and_last = np.stack((start_, end_))
+            np.savetxt(save_path, first_and_last)
+
         if np.mean(res[1]) > 0.0:
             back += 1
         else:
@@ -531,15 +544,14 @@ assoc_leg_1_at_zero, assoc_leg_1_at_pi = set_assoc_leg_1(load=True)
 
 if __name__ == '__main__':
 
-    main_dir_path = fr"experiments\ {Ci}_{Ca}_{l}_{B_imf[0]}_{B_imf[1]}_{B_imf[2]}"
+    main_dir_path = fr"experiments\\{Ci}_{Ca}_{l}_{B_imf[0]}_{B_imf[1]}_{B_imf[2]}"
 
     try:
         os.mkdir(main_dir_path)
+        os.mkdir(main_dir_path + "\\" + f"{n_start}_{n_end}")
+        os.mkdir(main_dir_path + "\\" + f"{n_start}_{n_end}" + "\\" + "moon_solutions")
     except OSError:
         pass
-
-    os.mkdir(main_dir_path + fr"\ {n_start}_{n_end}")
-    os.mkdir(main_dir_path + fr"\ {n_start}_{n_end}\moon_solutions")
 
     ics = np.load("start_cond_1M.npy")[n_start:n_end]
 
@@ -563,5 +575,5 @@ if __name__ == '__main__':
                     "front": statistic[3]
                      }
 
-    with open(main_dir_path + fr"\ {n_start}_{n_end}\stats.json", 'w', encoding='utf-8') as file:
+    with open(main_dir_path + r"\\" + f"{n_start}_{n_end}" + "\\" + "stats.json", 'w', encoding='utf-8') as file:
         json.dump(statistic_dict, file, ensure_ascii=False, indent=4)
