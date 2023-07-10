@@ -18,11 +18,6 @@ warnings.filterwarnings("ignore")
 
 
 parser = argparse.ArgumentParser(description='Configuring parameters of the magnetospehere and file managment')
-parser.add_argument('--c_i', default=0.9, type=float, help='C_i coeffitient')
-parser.add_argument('--c_a', default=0.1, type=float, help='C_a coeffitient')
-parser.add_argument('--l', default=0., type=float, help='lambda coeffitient')
-parser.add_argument('--start_index', default=0, type=int, help='lambda coeffitient')
-parser.add_argument('--end_index', default=1_000_000, type=int, help='lambda coeffitient')
 parser.add_argument('--batch_size', default=1_000, type=int, help='batch size to track progress')
 parser.add_argument('--num_processes', default=6, type=int, help='number of processes to for multiprocessing')
 
@@ -60,11 +55,11 @@ coef_mu0_4pi = -np.array([mu0/(4*np.pi)])
 coef_mu0_8pi = np.array([mu0/(8*np.pi)])
 B_imf = np.array([-5*1e-9, 0., 0.])
 args = parser.parse_args()
-Ci = args.c_i
-Ca = args.c_a
-l = args.l
-n_start = args.start_index
-n_end = args.end_index
+# Ci = args.c_i
+# Ca = args.c_a
+# l = args.l
+# n_start = args.start_index
+# n_end = args.end_index
 ###
 
 
@@ -448,8 +443,8 @@ def B_cfi_2004_plus_earth_qp_symm(r, theta, phi, x, y, z, N=20, C_i=0.9, C_a=0.0
 
 
 @njit
-def eqn(y, t):
-    global b, e, m_p, m_e, Re, Ci, Ca, l
+def eqn(y, t,  Ci=0.9, Ca=0.05, l=0.15):
+    global b, e, m_p, m_e, Re
     m = 16*m_p
     gamma = e / m
     y_1, y_2, y_3, y_4, y_5, y_6 = y
@@ -482,7 +477,7 @@ def check_in_torus(x, y, z):
         return dropped, z[check_arr_], y[check_arr_], x[check_arr_], 0
 
 
-def plot_traj(initial_conditions, t_0=7200, color='red'):
+def plot_traj(params, t_0=7200, color='red', Ci=0.9):
     global b
     moon_solutions = []
     moon_index = []
@@ -495,9 +490,11 @@ def plot_traj(initial_conditions, t_0=7200, color='red'):
     front = 0
     end_points = []
     t = np.linspace(0, t_0, t_0*10)
+    initial_conditions = params[:6]
+    Ca, l = params[6:]
 
     all_particles += 1
-    sol = integrate.odeint(eqn, initial_conditions, t)
+    sol = integrate.odeint(eqn, initial_conditions, t, args=(Ci, Ca, l))
     x_end = sol[:, 0][-1]
     y_end = sol[:, 0][-1]
     z_end = sol[:, 0][-1]
@@ -521,11 +518,7 @@ def plot_traj(initial_conditions, t_0=7200, color='red'):
 
         save_path = curr_dir_path + fr"\moon_solution_{int(last_name_number) + 1}.txt"
 
-<<<<<<< HEAD
         if last_name_number % 100 == 0:
-=======
-        if last_name_number % 5 == 0:
->>>>>>> 4f512efc6e5e778698c0d8f4ae7039ec841afba9
             np.savetxt(save_path, sol[:res[4]])
         else:
             start_ = sol[0]
@@ -546,7 +539,8 @@ limits_at_zero_1, limits_at_pi_1 = set_limits_of_legendre(load=True)
 assoc_leg_1_at_zero, assoc_leg_1_at_pi = set_assoc_leg_1(load=True)
 
 
-if __name__ == '__main__':
+def main(ics, Ca, l, Ci=0.9):
+    global B_imf
 
     main_dir_path = fr"experiments\\{Ci}_{Ca}_{l}_{B_imf[0]}_{B_imf[1]}_{B_imf[2]}"
 
@@ -557,8 +551,6 @@ if __name__ == '__main__':
     except OSError:
         pass
 
-    ics = np.load("start_cond_1M.npy")[n_start:n_end]
-
     batch_size = args.batch_size
     num_processes = args.num_processes
     N = len(ics) // batch_size
@@ -567,7 +559,11 @@ if __name__ == '__main__':
     p = mp.Pool(num_processes)
     for i in tqdm(range(0, len(ics), batch_size)):
         start_cond = ics[i:i+batch_size]
-        mp_solutions = p.map(plot_traj, start_cond)
+        params = np.zeros((start_cond.shape[0], start_cond.shape[1] + 2))
+        params[:, :6] = start_cond
+        params[:, 6] = Ca
+        params[:, 7] = l
+        mp_solutions = p.map(plot_traj, params)
         full_stats[k] = np.sum(np.array(mp_solutions), axis=0)
         k += 1
 
@@ -581,3 +577,21 @@ if __name__ == '__main__':
 
     with open(main_dir_path + r"\\" + f"{n_start}_{n_end}" + "\\" + "stats.json", 'w', encoding='utf-8') as file:
         json.dump(statistic_dict, file, ensure_ascii=False, indent=4)
+
+
+n_start = 0
+n_end = 3_000
+
+
+if __name__ == '__main__':
+
+    ics = np.load("start_cond_1M.npy")[n_start:n_end]
+    ca_grid = [0.01, 0.001]
+    l_grid = [0.1, 0.4]
+    k = 1
+    tl = len(ca_grid) * len(l_grid)
+    for ca in ca_grid:
+        for l in l_grid:
+            print(f"Current parameters:\nC_a={ca}\nC_i={0.9}\nlambda={l}\nProgress: {100 * k / tl} %")
+            main(ics, Ca=ca, l=l)
+            k += 1
