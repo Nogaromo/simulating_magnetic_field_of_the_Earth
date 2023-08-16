@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore")
 
 parser = argparse.ArgumentParser(description='Configuring parameters of the magnetospehere and file managment')
 parser.add_argument('--batch_size', default=1_000, type=int, help='batch size to track progress')
-parser.add_argument('--num_processes', default=6, type=int, help='number of processes to for multiprocessing')
+parser.add_argument('--num_processes', default=1, type=int, help='number of processes to for multiprocessing')
 
 # Setting up the constants
 g_1_0 = -29404.8 * 1e-9*0
@@ -53,7 +53,7 @@ sin_ecl = np.sin(phi_ecl)
 coef_mu0_4pi_b_3 = np.array([mu0/(4*np.pi*b**3)])
 coef_mu0_4pi = -np.array([mu0/(4*np.pi)])
 coef_mu0_8pi = np.array([mu0/(8*np.pi)])
-B_imf = np.array([-5*1e-9, 0., 0.])
+B_imf = np.array([0., 0., 5*1e-9])
 args = parser.parse_args()
 # Ci = args.c_i
 # Ca = args.c_a
@@ -359,7 +359,7 @@ def B_tail_z(r, phi, z, a_0_i, a_2_i, x_0_i, x_2_i, x_1_i=None, a_1_i=None):
     return B_tail_z_
 
 
-@njit
+@njit(fastmath=True)
 def B_tail(r, theta, phi, N=20, lambd=0.15):
     global x_0_i_list, x_1_i_list, x_2_i_list, a_0_i_list, a_1_i_list, a_2_i_list, coef_mu0_8pi
     rho = r*np.sin(theta)
@@ -404,7 +404,7 @@ def B_cfa(r, theta, phi, x, y, z, region='dayside'):
         return np.array([B_r, -B_phi, 0.])
 
 
-@njit
+@njit(fastmath=True)
 def B_cfi_2004_plus_earth_qp_symm(r, theta, phi, x, y, z, N=20, C_i=0.9, C_a=0.01, lambd=0.15):
     '''r: радиус в смещенной системе координат
        theta: угол относительно оси z в смещенной системе координат
@@ -424,13 +424,17 @@ def B_cfi_2004_plus_earth_qp_symm(r, theta, phi, x, y, z, N=20, C_i=0.9, C_a=0.0
             B_r = 0.0
             B_theta = 0.0
             B_phi = 0.0
+            sin_theta = np.sin(theta)
+            cos_theta = np.cos(theta)
             for n in range(1, N+1):
-                sin_theta = np.sin(theta)
-                cos_theta = np.cos(theta)
+
                 n = float(n)
                 B_r += B_cfi_r(n, r, theta, phi, cos_theta)
                 B_theta += B_cfi_theta(n, r, theta, phi, sin_theta, cos_theta)
                 B_phi += B_cfi_phi(n, r, theta, phi, sin_theta, cos_theta)
+                if n == 3.0:
+                    print(B_r, B_theta, B_phi)
+
             B_cfi = coef_mu0_4pi_b_3*np.array([B_r, B_theta, B_phi])
             B_e_qp_symm = B_qp_e(r, theta, phi, x, y, z)
             C = transform(theta, phi)
@@ -586,7 +590,7 @@ n_end = 3_000
 if __name__ == '__main__':
 
     ics = np.load("start_cond_1M.npy")[n_start:n_end]
-    ca_grid = [0.01, 0.001]
+    ca_grid = [0.1]
     l_grid = [0.1, 0.4]
     k = 1
     tl = len(ca_grid) * len(l_grid)
