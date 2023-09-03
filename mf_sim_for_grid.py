@@ -18,8 +18,8 @@ warnings.filterwarnings("ignore")
 
 
 parser = argparse.ArgumentParser(description='Configuring parameters of the magnetospehere and file managment')
-parser.add_argument('--batch_size', default=1_000, type=int, help='batch size to track progress')
-parser.add_argument('--num_processes', default=1, type=int, help='number of processes to for multiprocessing')
+parser.add_argument('--batch_size', default=10_000, type=int, help='batch size to track progress')
+parser.add_argument('--num_processes', default=24, type=int, help='number of processes to for multiprocessing')
 
 # Setting up the constants
 g_1_0 = -29404.8 * 1e-9*0
@@ -31,10 +31,11 @@ h_2_1 = -2991.6 * 1e-9*0
 g_2_2 = 1677.0 * 1e-9*0
 h_2_2 = -734.6 * 1e-9*0
 Re = 6400 * 1e3
-Rm = 16 * Re
 R_to_moon = 384_400e3
 R_moon = 1737.4e3
 b = 5 * Re
+Rs = 3.4 * Re
+Rm = Rs + b
 # c = 3*1e8
 # m_e = 1.67e-27
 # e = 1.6e-19
@@ -53,7 +54,8 @@ sin_ecl = np.sin(phi_ecl)
 coef_mu0_4pi_b_3 = np.array([mu0/(4*np.pi*b**3)])
 coef_mu0_4pi = -np.array([mu0/(4*np.pi)])
 coef_mu0_8pi = np.array([mu0/(8*np.pi)])
-B_imf = np.array([0., 0., 5*1e-9])
+#B_imf = np.array([0., 0., 5*1e-9])
+B_imf = np.array([-5*1e-9, 0., 0.])
 args = parser.parse_args()
 # Ci = args.c_i
 # Ca = args.c_a
@@ -432,8 +434,6 @@ def B_cfi_2004_plus_earth_qp_symm(r, theta, phi, x, y, z, N=20, C_i=0.9, C_a=0.0
                 B_r += B_cfi_r(n, r, theta, phi, cos_theta)
                 B_theta += B_cfi_theta(n, r, theta, phi, sin_theta, cos_theta)
                 B_phi += B_cfi_phi(n, r, theta, phi, sin_theta, cos_theta)
-                if n == 3.0:
-                    print(B_r, B_theta, B_phi)
 
             B_cfi = coef_mu0_4pi_b_3*np.array([B_r, B_theta, B_phi])
             B_e_qp_symm = B_qp_e(r, theta, phi, x, y, z)
@@ -520,7 +520,7 @@ def plot_traj(params, t_0=7200, color='red', Ci=0.9):
         else:
             last_name_number = 0
 
-        save_path = curr_dir_path + fr"\moon_solution_{int(last_name_number) + 1}.txt"
+        save_path = curr_dir_path + fr"\moon_solution_{int(last_name_number) + 1}_{os.getpid()}.txt"
 
         if last_name_number % 100 == 0:
             np.savetxt(save_path, sol[:res[4]])
@@ -569,6 +569,7 @@ def main(ics, Ca, l, Ci=0.9):
         params[:, 7] = l
         mp_solutions = p.map(plot_traj, params)
         full_stats[k] = np.sum(np.array(mp_solutions), axis=0)
+        print(f'\n{np.round(np.sum(full_stats, axis=0)[0] * 100 / (i + batch_size), 4)}%, total number: {i + batch_size}')
         k += 1
 
     statistic = np.sum(full_stats, axis=0)
@@ -584,14 +585,15 @@ def main(ics, Ca, l, Ci=0.9):
 
 
 n_start = 0
-n_end = 3_000
+n_end = 1_000_000
 
 
 if __name__ == '__main__':
 
-    ics = np.load("start_cond_1M.npy")[n_start:n_end]
-    ca_grid = [0.1]
-    l_grid = [0.1, 0.4]
+    ics = np.loadtxt('new_ic.txt')[n_start:n_end]
+    np.random.shuffle(ics)
+    ca_grid = [0.01]
+    l_grid = [0.25]
     k = 1
     tl = len(ca_grid) * len(l_grid)
     for ca in ca_grid:
